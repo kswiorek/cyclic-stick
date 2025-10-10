@@ -1,6 +1,7 @@
-code/.pio
-code/.vscode/.browse.c_cpp.db*
-code/.vscode/c_cpp_properties.json
-code/.vscode/launch.json
-code/.vscode/ipch
-code/.vscode/extensions.json
+code/ESP32/.pio
+code/ESP32/.vscode/.browse.c_cpp.db*
+code/ESP32/.vscode/c_cpp_properties.json
+code/ESP32/.vscode/launch.json
+code/ESP32/.vscode/ipch
+code/ESP32/.vscode/extensions.json
+code/ESP32/.gitignore

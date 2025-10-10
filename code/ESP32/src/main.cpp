@@ -4,12 +4,14 @@
 #include "grip_handler.h"
 #include "encoder_handler.h"
 #include "calibration.h"
+
+#include <EEPROM.h>
 #include "servo_control.h"
 
 BleGamepad bleGamepad(GAMEPAD_NAME, GAMEPAD_MANUFACTURER, GAMEPAD_BATTERY_LEVEL);
-
 int calibrationWaitCounter = 0;
-
+bool manualServoEnabled = true;
+bool followStickEnabled = true;
 
 void setup() {
   Serial.begin(DEBUG_SERIAL_BAUD);
@@ -20,7 +22,9 @@ void setup() {
   initEncoders();
   initServos();
   initCalibration();
-  
+  loadManualServoEnabledFromEEPROM();
+  loadFollowStickEnabledFromEEPROM();
+
   // Start servo control task on core 0
   startServoTask();
 
@@ -34,7 +38,8 @@ void setup() {
   bleGamepadConfig.setAxesMax(AXIS_MAX);
   bleGamepadConfig.setWhichAxes(true, true, false, false, false, false, true, true); // Enable only X, Y, Slider1, Slider2
   bleGamepad.begin(&bleGamepadConfig);
-  Serial.println("BLE Gamepad initialized");
+  Serial.print("BLE Gamepad initialized. Manual servo enabled: ");
+  Serial.println(manualServoEnabled ? "true" : "false");
 }
 
 
@@ -79,20 +84,59 @@ void loop() {
       }
     }
 
-    // Set flags for servo movement
-    setServoMovementFlags(
-      grip.buttons[BUTTON_SERVO1_INC],
-      grip.buttons[BUTTON_SERVO1_DEC],
-      grip.buttons[BUTTON_SERVO2_INC],
-      grip.buttons[BUTTON_SERVO2_DEC]
-    );
+
+    static bool lastManualServoEnabled = true;
+    static bool lastFollowStickEnabled = true;
+    // Disable manual servo movement on buttons 1 and 10
+    if (grip.buttons[BUTTON_MODIFIER] && grip.buttons[BUTTON_MANUAL_DISABLE]) {
+      manualServoEnabled = false;
+    }
+    // Enable manual servo movement on buttons 1 and 11
+    if (grip.buttons[BUTTON_MODIFIER] && grip.buttons[BUTTON_MANUAL_ENABLE]) {
+      manualServoEnabled = true;
+    }
+    // Disable follow stick mode on buttons 1 and 12
+    if (grip.buttons[BUTTON_MODIFIER] && grip.buttons[BUTTON_FOLLOW_DISABLE]) {
+      followStickEnabled = false;
+    }
+    // Enable follow stick mode on buttons 1 and 13
+    if (grip.buttons[BUTTON_MODIFIER] && grip.buttons[BUTTON_FOLLOW_ENABLE]) {
+      followStickEnabled = true;
+    }
+
+    if (manualServoEnabled != lastManualServoEnabled) {
+      saveManualServoEnabledToEEPROM();
+      lastManualServoEnabled = manualServoEnabled;
+    }
+    if (followStickEnabled != lastFollowStickEnabled) {
+      saveFollowStickEnabledToEEPROM();
+      lastFollowStickEnabled = followStickEnabled;
+    }
+
+    if (manualServoEnabled) {
+      setServoMovementFlags(
+        grip.buttons[BUTTON_SERVO1_INC],
+        grip.buttons[BUTTON_SERVO1_DEC],
+        grip.buttons[BUTTON_SERVO2_INC],
+        grip.buttons[BUTTON_SERVO2_DEC]
+      );
+    } else {
+      setServoMovementFlags(false, false, false, false);
+    }
+
+    if(grip.buttons[BUTTON_FOLLOW_STICK] && grip.buttons[BUTTON_MODIFIER]) {
+      resetServosToCenter();
+    }
 
     // Set follow stick mode
-    setFollowStickMode(grip.buttons[BUTTON_FOLLOW_STICK] && calibration.isCalibrated);
+    setFollowStickMode(grip.buttons[BUTTON_FOLLOW_STICK] && calibration.isCalibrated && !grip.buttons[BUTTON_MODIFIER] && followStickEnabled);
 
     // Set main X and Y axes (mapped_x, mapped_y)
-    bleGamepad.setX(mapped_x);
-    bleGamepad.setY(mapped_y);
+    // Flip axes for Bluetooth output only
+    int ble_x = FLIP_X_DIRECTION ? 1-mapped_x : mapped_x;
+    int ble_y = FLIP_Y_DIRECTION ? 1-mapped_y : mapped_y;
+    bleGamepad.setX(ble_x);
+    bleGamepad.setY(ble_y);
 
     // Map ministick values
     int mapped_ministick_x = mapMinistickToRange(grip.ministick_x, MINISTICK_X_MAX, MINISTICK_X_MIN);

@@ -1,7 +1,18 @@
 #include "servo_control.h"
 #include "encoder_handler.h"
 #include "calibration.h"
+#include <EEPROM.h>
+#include "config.h"
 
+// Defines
+#define EEPROM_MANUAL_SERVO_ADDR (EEPROM_CALIBRATION_ADDR + sizeof(CalibrationData))
+#define EEPROM_FOLLOW_STICK_ADDR (EEPROM_MANUAL_SERVO_ADDR + sizeof(bool))
+
+// Externs
+extern bool manualServoEnabled;
+extern bool followStickEnabled;
+
+// Servo objects and state
 Servo servo1;
 Servo servo2;
 volatile int servo1_target = SERVO_INITIAL_POSITION;
@@ -15,9 +26,36 @@ volatile bool servo2_dec = false;
 volatile bool servo2_inc = false;
 
 volatile bool followStickMode = false;
-
 TaskHandle_t servoTaskHandle = NULL;
 
+// EEPROM persistence for manual servo enable
+void saveManualServoEnabledToEEPROM() {
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.put(EEPROM_MANUAL_SERVO_ADDR, manualServoEnabled);
+  EEPROM.commit();
+  EEPROM.end();
+}
+
+void loadManualServoEnabledFromEEPROM() {
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.get(EEPROM_MANUAL_SERVO_ADDR, manualServoEnabled);
+  EEPROM.end();
+}
+
+void saveFollowStickEnabledToEEPROM() {
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.put(EEPROM_FOLLOW_STICK_ADDR, followStickEnabled);
+  EEPROM.commit();
+  EEPROM.end();
+}
+
+void loadFollowStickEnabledFromEEPROM() {
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.get(EEPROM_FOLLOW_STICK_ADDR, followStickEnabled);
+  EEPROM.end();
+}
+
+// Servo initialization
 void initServos() {
   servo1.attach(SERVO1_PIN);
   servo2.attach(SERVO2_PIN);
@@ -27,6 +65,7 @@ void initServos() {
   servoMutex = xSemaphoreCreateMutex();
 }
 
+// Servo task management
 void startServoTask() {
   xTaskCreatePinnedToCore(servoTask, "ServoTask", SERVO_TASK_STACK_SIZE, NULL, SERVO_TASK_PRIORITY, &servoTaskHandle, SERVO_TASK_CORE);
 }
@@ -39,6 +78,7 @@ void resumeServoTask() {
   if (servoTaskHandle) vTaskResume(servoTaskHandle);
 }
 
+// Servo movement and mode
 void setServoMovementFlags(bool s1_inc, bool s1_dec, bool s2_inc, bool s2_dec) {
   servo1_inc = s1_inc;
   servo1_dec = s1_dec;
@@ -63,6 +103,16 @@ void writeServo2(int position) {
   servo2.write(position);
 }
 
+// Reset servos to center position
+void resetServosToCenter() {
+  int servo1_center = (calibration.servo1_min + calibration.servo1_max) / 2;
+  int servo2_center = (calibration.servo2_min + calibration.servo2_max) / 2;
+  setServoTargets(servo1_center, servo2_center);
+  writeServo1(servo1_center);
+  writeServo2(servo2_center);
+}
+
+// Servo control task
 void servoTask(void *pvParameters) {
   unsigned long lastManualMove = 0;
   for (;;) {

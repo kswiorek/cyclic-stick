@@ -20,8 +20,8 @@
 #define DEBUG_SERIAL_BAUD 115200
 
 // ==================== SERVO CONFIGURATION ====================
-#define FLIP_SERVO1_DIRECTION 0  // Set to 1 to flip direction
-#define FLIP_SERVO2_DIRECTION 1  // Set to 1 to flip direction
+#define FLIP_X_DIRECTION 0  // Set to 1 to flip direction
+#define FLIP_Y_DIRECTION 1  // Set to 1 to flip direction
 #define SERVO_INITIAL_POSITION 90
 #define SERVO_MIN_POSITION 0
 #define SERVO_MAX_POSITION 180
@@ -53,7 +53,13 @@ const uint8_t INVERT_MASK[40] = {1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1,
 const uint8_t BUTTON_INDICES[] = {8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 24, 25, 26, 27, 28, 29, 30, 31, 36, 37, 39};
 const size_t BUTTON_COUNT = sizeof(BUTTON_INDICES) / sizeof(BUTTON_INDICES[0]);
 
+
 // Button indices for special functions
+#define BUTTON_MODIFIER 0
+#define BUTTON_MANUAL_DISABLE 10
+#define BUTTON_MANUAL_ENABLE 11
+#define BUTTON_FOLLOW_DISABLE 9
+#define BUTTON_FOLLOW_ENABLE 8
 #define BUTTON_CALIBRATE_1 0
 #define BUTTON_CALIBRATE_2 1
 #define BUTTON_SERVO1_INC 16

@@ -56,20 +56,12 @@ void performCalibration() {
 
   // Move to minimum position
   Serial.println("Moving to minimum...");
-#if FLIP_SERVO1_DIRECTION
-  writeServo1(SERVO_MAX_POSITION);
-#else
   writeServo1(SERVO_MIN_POSITION);
-#endif
   delay(CALIBRATION_DELAY_MS);
   uint16_t extreme_encoder1_min = readMT6701Angle(Wire);
 
   // SERVO 1 min backoff
-#if FLIP_SERVO1_DIRECTION
-  for (int pos = SERVO_MAX_POSITION; pos >= SERVO_MIN_POSITION; pos--) {
-#else
   for (int pos = SERVO_MIN_POSITION; pos <= SERVO_MAX_POSITION; pos++) {
-#endif
     writeServo1(pos);
     delay(CALIBRATION_STEP_DELAY_MS);
     uint16_t current_encoder1 = readMT6701Angle(Wire);
@@ -93,20 +85,12 @@ void performCalibration() {
   
   // Move to maximum position
   Serial.println("Moving to maximum...");
-#if FLIP_SERVO1_DIRECTION
-  writeServo1(SERVO_MIN_POSITION);
-#else
   writeServo1(SERVO_MAX_POSITION);
-#endif
   delay(CALIBRATION_DELAY_MS);
   uint16_t extreme_encoder1_max = readMT6701Angle(Wire);
 
   // SERVO 1 max backoff
-#if FLIP_SERVO1_DIRECTION
-  for (int pos = SERVO_MIN_POSITION; pos <= SERVO_MAX_POSITION; pos++) {
-#else
   for (int pos = SERVO_MAX_POSITION; pos >= SERVO_MIN_POSITION; pos--) {
-#endif
     writeServo1(pos);
     delay(CALIBRATION_STEP_DELAY_MS);
     uint16_t current_encoder1 = readMT6701Angle(Wire);
@@ -133,20 +117,12 @@ void performCalibration() {
 
   // Move to minimum position
   Serial.println("Moving to minimum...");
-#if FLIP_SERVO2_DIRECTION
-  writeServo2(SERVO_MAX_POSITION);
-#else
   writeServo2(SERVO_MIN_POSITION);
-#endif
   delay(CALIBRATION_DELAY_MS);
   uint16_t extreme_encoder2_min = readMT6701Angle(Wire2);
 
   // SERVO 2 min backoff
-#if FLIP_SERVO2_DIRECTION
-  for (int pos = SERVO_MAX_POSITION; pos >= SERVO_MIN_POSITION; pos--) {
-#else
   for (int pos = SERVO_MIN_POSITION; pos <= SERVO_MAX_POSITION; pos++) {
-#endif
     writeServo2(pos);
     delay(CALIBRATION_STEP_DELAY_MS);
     uint16_t current_encoder2 = readMT6701Angle(Wire2);
@@ -170,20 +146,12 @@ void performCalibration() {
 
   // Move to maximum position
   Serial.println("Moving to maximum...");
-#if FLIP_SERVO2_DIRECTION
-  writeServo2(SERVO_MIN_POSITION);
-#else
   writeServo2(SERVO_MAX_POSITION);
-#endif
   delay(CALIBRATION_DELAY_MS);
   uint16_t extreme_encoder2_max = readMT6701Angle(Wire2);
 
   // SERVO 2 max backoff
-#if FLIP_SERVO2_DIRECTION
-  for (int pos = SERVO_MIN_POSITION; pos <= SERVO_MAX_POSITION; pos++) {
-#else
   for (int pos = SERVO_MAX_POSITION; pos >= SERVO_MIN_POSITION; pos--) {
-#endif
     writeServo2(pos);
     delay(CALIBRATION_STEP_DELAY_MS);
     uint16_t current_encoder2 = readMT6701Angle(Wire2);

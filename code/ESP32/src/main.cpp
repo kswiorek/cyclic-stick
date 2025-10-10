@@ -5,6 +5,9 @@
 #include <EEPROM.h>
 #include <BleGamepad.h>
 
+#define FLIP_SERVO1_DIRECTION 0  // Set to 1 to flip direction
+#define FLIP_SERVO2_DIRECTION 1  // Set to 1 to flip direction
+
 const uint8_t pollSignal[9] = {0xA5, 0x0B, 0x11, 0x98, 0x00, 0x00, 0x00, 0xE5, 0x20};
 const uint8_t TX_PIN = 22;
 const uint8_t RX_PIN = 23;
@@ -189,6 +192,9 @@ void setup() {
   bleGamepadConfig.setControllerType(CONTROLLER_TYPE_JOYSTICK);
   bleGamepadConfig.setButtonCount(buttonCount);
   bleGamepadConfig.setHatSwitchCount(0);
+  bleGamepadConfig.setAxesMin(-2048);
+  bleGamepadConfig.setAxesMax(2047);
+  bleGamepadConfig.setWhichAxes(true, true, false, false, false, false, true, true); // Enable only X, Y, Slider1, Slider2
   bleGamepad.begin(&bleGamepadConfig);
   Serial.println("BLE Gamepad initialized");
 }
@@ -282,6 +288,14 @@ int mapEncoderToRange(uint16_t value, uint16_t min, uint16_t max) {
   return (int)mapped;
 }
 
+int mapMinistickToRange(uint16_t value, uint16_t min, uint16_t max) {
+  if (max == min) return 0;
+  long mapped = ((long)(value - min) * 4095) / (max - min) - 2048;
+  if (mapped < -2048) mapped = -2048;
+  if (mapped > 2047) mapped = 2047;
+  return (int)mapped;
+}
+
 // --- Calibration function ---
 void performCalibration() {
   Serial.println("=== Starting Calibration ===");
@@ -294,12 +308,20 @@ void performCalibration() {
 
   // Move to minimum position
   Serial.println("Moving to minimum...");
+#if FLIP_SERVO1_DIRECTION
+  servo1.write(180);
+#else
   servo1.write(0);
+#endif
   delay(2000);
   uint16_t extreme_encoder1_min = readMT6701Angle(Wire);
 
   // SERVO 1 min backoff
+#if FLIP_SERVO1_DIRECTION
+  for (int pos = 180; pos >= 0; pos--) {
+#else
   for (int pos = 0; pos <= 180; pos++) {
+#endif
     servo1.write(pos);
     delay(50);
     uint16_t current_encoder1 = readMT6701Angle(Wire);
@@ -324,12 +346,20 @@ void performCalibration() {
 
   // Move to maximum position
   Serial.println("Moving to maximum...");
+#if FLIP_SERVO1_DIRECTION
+  servo1.write(0);
+#else
   servo1.write(180);
+#endif
   delay(2000);
   uint16_t extreme_encoder1_max = readMT6701Angle(Wire);
 
   // SERVO 1 max backoff
+#if FLIP_SERVO1_DIRECTION
+  for (int pos = 0; pos <= 180; pos++) {
+#else
   for (int pos = 180; pos >= 0; pos--) {
+#endif
     servo1.write(pos);
     delay(50);
     uint16_t current_encoder1 = readMT6701Angle(Wire);
@@ -356,12 +386,20 @@ void performCalibration() {
 
   // Move to minimum position
   Serial.println("Moving to minimum...");
+#if FLIP_SERVO2_DIRECTION
+  servo2.write(180);
+#else
   servo2.write(0);
+#endif
   delay(2000);
   uint16_t extreme_encoder2_min = readMT6701Angle(Wire2);
 
   // SERVO 2 min backoff
+#if FLIP_SERVO2_DIRECTION
+  for (int pos = 180; pos >= 0; pos--) {
+#else
   for (int pos = 0; pos <= 180; pos++) {
+#endif
     servo2.write(pos);
     delay(50);
     uint16_t current_encoder2 = readMT6701Angle(Wire2);
@@ -385,12 +423,20 @@ void performCalibration() {
 
   // Move to maximum position
   Serial.println("Moving to maximum...");
+#if FLIP_SERVO2_DIRECTION
+  servo2.write(0);
+#else
   servo2.write(180);
+#endif
   delay(2000);
   uint16_t extreme_encoder2_max = readMT6701Angle(Wire2);
 
   // SERVO 2 max backoff
+#if FLIP_SERVO2_DIRECTION
+  for (int pos = 0; pos <= 180; pos++) {
+#else
   for (int pos = 180; pos >= 0; pos--) {
+#endif
     servo2.write(pos);
     delay(50);
     uint16_t current_encoder2 = readMT6701Angle(Wire2);
@@ -550,6 +596,30 @@ void loop() {
     servo2_dec = (grip.buttons[19]);
 
     followStickMode = grip.buttons[22] && calibration.isCalibrated;
+
+    // Set main X and Y axes (mapped_x, mapped_y)
+    bleGamepad.setX(mapped_x);
+    bleGamepad.setY(mapped_y);
+
+    // Map ministick values
+    int mapped_ministick_x = mapMinistickToRange(grip.ministick_x, 2951, 1267);
+    int mapped_ministick_y = mapMinistickToRange(grip.ministick_y, 2973, 1174);
+
+    // Set ministick axes (use sliders or RZ/RX axes)
+    bleGamepad.setSlider(mapped_ministick_x); // Slider 1
+    bleGamepad.setSlider2(mapped_ministick_y); // Slider 2
+
+    // Set button states
+    for (size_t i = 0; i < buttonCount; i++) {
+        if (grip.buttons[i]) {
+            bleGamepad.press(i + 1); // Button numbering starts at 1
+        } else {
+            bleGamepad.release(i + 1);
+        }
+    }
+
+    // Send the report via Bluetooth
+    bleGamepad.sendReport();
   }
   delay(5);
 }
